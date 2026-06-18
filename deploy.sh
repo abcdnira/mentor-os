@@ -19,4 +19,6 @@ echo ""
 echo "=== Deploy complete ==="
 echo "Verifying health..."
 sleep 1
-curl -sf http://localhost/api/health && echo "" || echo "WARNING: health check failed"
+# Health check via nginx (HTTPS with self-signed cert)
+curl -skf https://localhost/api/health && echo "" && echo "API: OK" || echo "WARNING: API health check failed"
+curl -sko /dev/null https://localhost/ && echo "Web: OK" || echo "WARNING: Web health check failed"

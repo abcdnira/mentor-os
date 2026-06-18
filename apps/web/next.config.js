@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   async rewrites() {
     // In local dev, proxy /api/* to Go backend on port 8080
     // In production (Docker), nginx handles this
