@@ -5,3 +5,132 @@
 body {
   @apply bg-gray-50 text-gray-900 antialiased;
 }
+
+/* ===== Mentor Markdown Message ===== */
+
+.mentor-markdown {
+  @apply text-[14px] text-gray-800;
+  line-height: 1.75;
+}
+
+/* Headings */
+.mentor-markdown h1 {
+  @apply text-lg font-bold text-gray-900 mt-6 mb-3;
+}
+
+.mentor-markdown h2 {
+  @apply text-base font-semibold text-gray-900 mt-6 mb-2 pb-1.5 border-b border-gray-100;
+}
+
+.mentor-markdown h3 {
+  @apply text-[15px] font-semibold text-gray-900 mt-5 mb-2;
+}
+
+.mentor-markdown h4 {
+  @apply text-[14px] font-semibold text-gray-800 mt-4 mb-1.5;
+}
+
+/* First child no top margin */
+.mentor-markdown > :first-child {
+  margin-top: 0 !important;
+}
+
+/* Last child no bottom margin */
+.mentor-markdown > :last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Paragraph */
+.mentor-markdown p {
+  @apply my-3;
+  line-height: 1.8;
+}
+
+/* Bold / Italic */
+.mentor-markdown strong {
+  @apply font-semibold text-gray-900;
+}
+
+.mentor-markdown em {
+  @apply italic text-gray-700;
+}
+
+/* Lists */
+.mentor-markdown ul {
+  @apply my-3 pl-5 space-y-1 list-disc;
+}
+
+.mentor-markdown ol {
+  @apply my-3 pl-5 space-y-1 list-decimal;
+}
+
+.mentor-markdown li {
+  line-height: 1.8;
+  @apply text-gray-800;
+}
+
+.mentor-markdown li > p {
+  @apply my-0;
+}
+
+.mentor-markdown li > ul,
+.mentor-markdown li > ol {
+  @apply mt-1 mb-0;
+}
+
+/* Task list (checkbox) */
+.mentor-markdown li:has(> input[type="checkbox"]) {
+  @apply list-none -ml-5;
+}
+
+/* Blockquote */
+.mentor-markdown blockquote {
+  @apply my-4 pl-4 py-0.5 border-l-[3px] border-brand-300 bg-brand-50/30 rounded-r-lg;
+}
+
+.mentor-markdown blockquote p {
+  @apply text-gray-600 italic my-1.5;
+}
+
+/* Inline code */
+.mentor-markdown code:not(.code-block-wrapper code) {
+  @apply px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-800 text-[13px] font-mono font-medium;
+  word-break: break-word;
+}
+
+/* Horizontal rule */
+.mentor-markdown hr {
+  @apply my-5 border-gray-150;
+}
+
+/* Links */
+.mentor-markdown a {
+  @apply text-brand-600 underline decoration-brand-200 underline-offset-2 hover:decoration-brand-500 transition;
+}
+
+/* Table (inside overflow wrapper from component) */
+.mentor-markdown table {
+  @apply w-full text-[13px] border-collapse;
+}
+
+.mentor-markdown thead {
+  @apply bg-gray-50;
+}
+
+.mentor-markdown th {
+  @apply text-left font-semibold text-gray-900 px-3 py-2 border-b border-gray-200;
+  white-space: nowrap;
+}
+
+.mentor-markdown td {
+  @apply px-3 py-2 border-b border-gray-100 text-gray-700;
+}
+
+.mentor-markdown tr:last-child td {
+  @apply border-b-0;
+}
+
+/* Images */
+.mentor-markdown img {
+  @apply my-3 rounded-lg max-w-full;
+}

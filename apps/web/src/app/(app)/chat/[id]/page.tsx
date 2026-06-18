@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, Loader2, Sparkles, CheckCircle } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 import Link from "next/link";
+import { MarkdownMessage } from "@/components/markdown-message";
 import {
   getSession,
   sendMessage,
@@ -145,35 +145,23 @@ export default function ChatSessionPage() {
             </p>
           </div>
         )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn(
-              "max-w-[75%]",
-              msg.role === "user" ? "ml-auto" : "mr-auto"
-            )}
-          >
-            <div className="text-xs text-gray-400 mb-1">
-              {msg.role === "user" ? "You" : "Mentor"}
+        {messages.map((msg) =>
+          msg.role === "user" ? (
+            <div key={msg.id} className="max-w-[75%] ml-auto">
+              <div className="text-xs text-gray-400 mb-1 text-right">You</div>
+              <div className="px-4 py-3 rounded-xl text-sm leading-relaxed bg-brand-600 text-white">
+                {msg.content}
+              </div>
             </div>
-            <div
-              className={cn(
-                "px-4 py-3 rounded-xl text-sm leading-relaxed",
-                msg.role === "user"
-                  ? "bg-brand-600 text-white"
-                  : "bg-white border border-gray-100 text-gray-800"
-              )}
-            >
-              {msg.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1.5 prose-li:my-0.5 prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                msg.content
-              )}
+          ) : (
+            <div key={msg.id} className="max-w-[85%] mr-auto">
+              <div className="text-xs text-gray-400 mb-1">Mentor</div>
+              <div className="px-5 py-4 rounded-xl bg-white border border-gray-100">
+                <MarkdownMessage content={msg.content} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
 
         {sending && (
           <div className="max-w-[75%] mr-auto">
