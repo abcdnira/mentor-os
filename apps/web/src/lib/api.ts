@@ -149,6 +149,29 @@ export function analyzeProject(id: string) {
   return request<ProjectNode>(`/projects/${id}/analyze`, { method: "POST" });
 }
 
+export async function uploadProjectCode(projectId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${BASE}/projects/${projectId}/upload`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Upload failed: ${res.status}`);
+  }
+  return res.json() as Promise<ProjectNode>;
+}
+
+// Resume
+export function generateResume(version: string) {
+  return request<{ markdown: string; version: string }>("/resume/generate", {
+    method: "POST",
+    body: JSON.stringify({ version }),
+  });
+}
+
 // Roadmap
 export function listRoadmap() {
   return request<RoadmapItem[]>("/roadmap");
@@ -240,11 +263,19 @@ export interface ReflectionResult {
   capability_nodes: CapabilityNode[];
 }
 
+export interface TodayTask {
+  title: string;
+  source: string;
+  action: string;
+}
+
 export interface DashboardData {
   capabilities: CapabilityNode[];
   recent_knowledge: KnowledgeNode[];
   recent_reflections: Reflection[];
   next_actions: string[];
+  today_tasks: TodayTask[];
+  weak_areas: CapabilityNode[];
 }
 
 export interface EvaluationResult {

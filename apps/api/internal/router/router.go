@@ -34,6 +34,8 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	interviewSvc := service.NewInterviewService(db, aiProvider)
 	projectSvc := service.NewProjectService(db, aiProvider)
 	roadmapSvc := service.NewRoadmapService(db, aiProvider)
+	resumeSvc := service.NewResumeService(db, aiProvider)
+	codeAnalyzerSvc := service.NewCodeAnalyzerService(db, aiProvider)
 
 	// Handlers
 	authH := handler.NewAuthHandler(authSvc, cfg)
@@ -45,6 +47,8 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	interviewH := handler.NewInterviewHandler(interviewSvc)
 	projectH := handler.NewProjectHandler(projectSvc)
 	roadmapH := handler.NewRoadmapHandler(roadmapSvc)
+	resumeH := handler.NewResumeHandler(resumeSvc)
+	codeUploadH := handler.NewCodeUploadHandler(codeAnalyzerSvc)
 
 	// Health
 	r.GET("/health", func(c *gin.Context) {
@@ -106,6 +110,7 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			projects.GET("", projectH.List)
 			projects.GET("/:id", projectH.Get)
 			projects.POST("/:id/analyze", projectH.Analyze)
+			projects.POST("/:id/upload", codeUploadH.Upload)
 		}
 
 		// Roadmap
@@ -115,6 +120,9 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 			roadmap.POST("/generate", roadmapH.Generate)
 			roadmap.PUT("/:id/status", roadmapH.UpdateStatus)
 		}
+
+		// Resume
+		p.POST("/resume/generate", resumeH.Generate)
 	}
 
 	return r

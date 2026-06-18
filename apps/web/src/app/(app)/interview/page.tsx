@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { getInterviewTopics, startInterview } from "@/lib/api";
+import { PageError } from "@/components/page-error";
 
 const TOPIC_ICONS: Record<string, string> = {
   golang: "Go", redis: "Re", mysql: "My", mq: "MQ",
@@ -15,21 +16,24 @@ export default function InterviewPage() {
   const [topics, setTopics] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getInterviewTopics()
-      .then(setTopics)
+      .then((data) => setTopics(data || {}))
+      .catch((err) => setError(err.message || "Failed to load topics"))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleStart(topic: string) {
     if (starting) return;
     setStarting(topic);
+    setError("");
     try {
       const result = await startInterview(topic);
       router.push(`/interview/${result.conversation.id}?topic=${topic}`);
     } catch (err: any) {
-      alert("Failed to start: " + err.message);
+      setError(err.message || "Failed to start interview");
     } finally {
       setStarting("");
     }
@@ -42,10 +46,17 @@ export default function InterviewPage() {
         Select a topic to start a simulated technical interview.
       </p>
 
+      <PageError error={error} onDismiss={() => setError("")} />
+
       {loading ? (
-        <div className="text-sm text-gray-400">Loading topics...</div>
+        <div className="text-sm text-gray-400 mt-4">Loading topics...</div>
+      ) : Object.keys(topics).length === 0 ? (
+        <div className="text-center py-16">
+          <GraduationCap size={40} className="mx-auto text-gray-200 mb-3" />
+          <p className="text-sm text-gray-400">No interview topics available.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mt-4">
           {Object.entries(topics).map(([key, label]) => (
             <button
               key={key}
@@ -69,8 +80,7 @@ export default function InterviewPage() {
 
       <div className="mt-8 p-4 bg-gray-50 rounded-xl">
         <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-          <GraduationCap size={16} />
-          How it works
+          <GraduationCap size={16} /> How it works
         </div>
         <ol className="text-xs text-gray-500 space-y-1 list-decimal pl-4">
           <li>Mentor asks you a technical question</li>

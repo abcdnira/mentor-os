@@ -14,10 +14,11 @@ import (
 type ChatService struct {
 	db       *gorm.DB
 	provider ai.Provider
+	ctxSvc   *ContextService
 }
 
 func NewChatService(db *gorm.DB, provider ai.Provider) *ChatService {
-	return &ChatService{db: db, provider: provider}
+	return &ChatService{db: db, provider: provider, ctxSvc: NewContextService(db)}
 }
 
 const mentorBasePrompt = `You are Mentor, an AI growth mentor in Mentor OS.
@@ -177,9 +178,11 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UU
 	var history []model.Message
 	s.db.Where("conversation_id = ?", sessionID).Order("created_at ASC").Find(&history)
 
+	// Build system prompt with user's Second Brain context (RAG)
 	systemPrompt := buildSystemPrompt(input.ResponseMode)
+	userContext := s.ctxSvc.BuildChatContext(userID, input.Content)
 	aiMessages := []ai.Message{
-		{Role: "system", Content: systemPrompt},
+		{Role: "system", Content: systemPrompt + userContext},
 	}
 	for _, msg := range history {
 		if msg.Role == "system" {

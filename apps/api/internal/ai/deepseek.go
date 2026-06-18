@@ -73,6 +73,11 @@ func openAICompatibleChat(
 		return "", fmt.Errorf("read response: %w", err)
 	}
 
+	// Check HTTP status first — catches 401, 429, 500 etc.
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("ai api HTTP %d: %s", resp.StatusCode, string(respBytes))
+	}
+
 	var result chatCompletionResponse
 	if err := json.Unmarshal(respBytes, &result); err != nil {
 		return "", fmt.Errorf("unmarshal response: %w", err)

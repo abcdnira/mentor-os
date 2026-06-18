@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -75,8 +76,21 @@ func (s *RoadmapService) Generate(ctx context.Context, userID uuid.UUID) ([]mode
 		targetRole = "AI Backend / Agent Backend"
 	}
 
+	// Include capability gaps for smarter roadmap
+	var caps []model.CapabilityNode
+	s.db.Where("user_id = ?", userID).Order("score ASC").Limit(10).Find(&caps)
+	var weaknesses []string
+	for _, c := range caps {
+		if c.Score < 60 {
+			weaknesses = append(weaknesses, fmt.Sprintf("%s (%s): %d/100", c.Name, c.Category, c.Score))
+		}
+	}
+
 	input := fmt.Sprintf("Current Role: %s\nTarget Role: %s\nTech Stack: %s\nCareer Goals: %s",
 		currentRole, targetRole, string(profile.MainStack), string(profile.CareerGoals))
+	if len(weaknesses) > 0 {
+		input += "\n\nWeak Areas (prioritize these):\n- " + strings.Join(weaknesses, "\n- ")
+	}
 
 	aiMessages := []ai.Message{
 		{Role: "system", Content: roadmapPrompt},

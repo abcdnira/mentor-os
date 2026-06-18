@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Upload } from "lucide-react";
 import { MarkdownMessage } from "@/components/markdown-message";
-import { getProject, analyzeProject, type ProjectNode } from "@/lib/api";
+import { getProject, analyzeProject, uploadProjectCode, type ProjectNode } from "@/lib/api";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -13,6 +13,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<ProjectNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -36,6 +37,21 @@ export default function ProjectDetailPage() {
     }
   }
 
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !project || uploading) return;
+    setUploading(true);
+    setError("");
+    try {
+      const updated = await uploadProjectCode(project.id, file);
+      setProject(updated);
+    } catch (err: any) {
+      setError("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (loading) return <div className="p-8 text-sm text-gray-400">Loading...</div>;
   if (!project) return null;
 
@@ -48,6 +64,11 @@ export default function ProjectDetailPage() {
           <ArrowLeft size={16} className="text-gray-500" />
         </Link>
         <h2 className="text-xl font-bold text-gray-900 flex-1">{project.name}</h2>
+        <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition cursor-pointer">
+          {uploading ? <><Loader2 size={14} className="animate-spin" /> Uploading...</>
+            : <><Upload size={14} /> Upload Code</>}
+          <input type="file" accept=".zip" onChange={handleUpload} className="hidden" disabled={uploading} />
+        </label>
         {!analyzed && (
           <button onClick={handleAnalyze} disabled={analyzing}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition">

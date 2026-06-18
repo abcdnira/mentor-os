@@ -4,22 +4,30 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, MessageSquare } from "lucide-react";
 import { listSessions, createSession, type Conversation } from "@/lib/api";
+import { PageError } from "@/components/page-error";
 import { cn } from "@/lib/cn";
 
 export default function ChatListPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     listSessions()
-      .then(setSessions)
+      .then((data) => setSessions(data || []))
+      .catch((err) => setError(err.message || "Failed to load sessions"))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleNew() {
-    const session = await createSession();
-    router.push(`/chat/${session.id}`);
+    setError("");
+    try {
+      const session = await createSession();
+      router.push(`/chat/${session.id}`);
+    } catch (err: any) {
+      setError(err.message || "Failed to create session");
+    }
   }
 
   return (
@@ -35,14 +43,14 @@ export default function ChatListPage() {
         </button>
       </div>
 
+      <PageError error={error} onDismiss={() => setError("")} />
+
       {loading ? (
         <div className="text-sm text-gray-400">Loading...</div>
       ) : sessions.length === 0 ? (
         <div className="text-center py-16">
           <MessageSquare size={40} className="mx-auto text-gray-200 mb-3" />
-          <p className="text-sm text-gray-400">
-            No conversations yet. Start a new chat!
-          </p>
+          <p className="text-sm text-gray-400">No conversations yet. Start a new chat!</p>
         </div>
       ) : (
         <div className="space-y-1">
@@ -50,19 +58,12 @@ export default function ChatListPage() {
             <button
               key={s.id}
               onClick={() => router.push(`/chat/${s.id}`)}
-              className={cn(
-                "w-full text-left p-3 rounded-lg hover:bg-gray-50 transition",
-                "flex items-center gap-3"
-              )}
+              className={cn("w-full text-left p-3 rounded-lg hover:bg-gray-50 transition", "flex items-center gap-3")}
             >
               <MessageSquare size={16} className="text-gray-300 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {s.title}
-                </div>
-                <div className="text-xs text-gray-400">
-                  {new Date(s.updated_at).toLocaleDateString()}
-                </div>
+                <div className="text-sm font-medium text-gray-900 truncate">{s.title}</div>
+                <div className="text-xs text-gray-400">{new Date(s.updated_at).toLocaleDateString()}</div>
               </div>
             </button>
           ))}
