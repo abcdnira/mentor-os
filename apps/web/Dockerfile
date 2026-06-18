@@ -14,8 +14,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV BACKEND_URL=http://api:8080
+# Next.js standalone binds to localhost by default — must set 0.0.0.0 for Docker
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-# standalone output includes a minimal server + required node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
