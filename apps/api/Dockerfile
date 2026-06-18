@@ -1,48 +1,21 @@
 FROM golang:1.23-alpine AS builder
 
+RUN apk add --no-cache git
+
 WORKDIR /app
 
-RUN cat > go.mod <<'GOMOD'
-module mentor-os-api
+COPY go.mod go.sum ./
+RUN go mod download
 
-go 1.23
-GOMOD
-
-RUN cat > main.go <<'GO'
-package main
-
-import (
-	"encoding/json"
-	"log"
-	"net/http"
-)
-
-func main() {
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"status": "ok",
-			"service": "mentor-os-api",
-		})
-	})
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"message": "Mentor OS API is running",
-		})
-	})
-
-	log.Println("Mentor OS API listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-GO
-
-RUN go build -o server .
+COPY . .
+RUN CGO_ENABLED=0 go build -o server ./cmd/server/
 
 FROM alpine:3.20
 
 WORKDIR /app
 
 COPY --from=builder /app/server /app/server
+COPY --from=builder /app/migrations /app/migrations
 
 EXPOSE 8080
 

@@ -28,6 +28,10 @@ services:
     restart: always
     env_file:
       - .env
+    environment:
+      - DB_HOST=postgres
+    depends_on:
+      - postgres
 
   postgres:
     image: ankane/pgvector:latest

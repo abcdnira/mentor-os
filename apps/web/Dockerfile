@@ -1,48 +1,23 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
 FROM node:20-alpine
 
 WORKDIR /app
 
-RUN cat > package.json <<'PKG'
-{
-  "scripts": {
-    "start": "next start -H 0.0.0.0 -p 3000",
-    "build": "next build"
-  },
-  "dependencies": {
-    "next": "14.2.23",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
-  }
-}
-PKG
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.js ./next.config.js
 
-RUN mkdir -p app && cat > app/page.jsx <<'PAGE'
-export default function Home() {
-  return (
-    <main style={{fontFamily: "Arial", padding: 40}}>
-      <h1>Mentor OS</h1>
-      <p>AI Mentor + Second Brain is running.</p>
-    </main>
-  );
-}
-PAGE
-
-RUN cat > app/layout.jsx <<'LAYOUT'
-export const metadata = {
-  title: "Mentor OS",
-  description: "AI Mentor + Second Brain"
-};
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>{children}</body>
-    </html>
-  );
-}
-LAYOUT
-
-RUN npm install && npm run build
+ENV BACKEND_URL=http://api:8080
 
 EXPOSE 3000
 
