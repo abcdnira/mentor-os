@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Loader2, Sparkles, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Send,
+  Loader2,
+  Sparkles,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { MarkdownMessage } from "@/components/markdown-message";
-import {
-  MessageActions,
-  getActionChips,
-} from "@/components/message-actions";
+import { MessageActions, getActionChips } from "@/components/message-actions";
 import { ModeSelector, type ResponseMode } from "@/components/mode-selector";
 import {
   getSession,
@@ -33,7 +37,9 @@ export default function ChatSessionPage() {
   const [reflectionResult, setReflectionResult] =
     useState<ReflectionResult | null>(null);
   const [mode, setMode] = useState<ResponseMode>("standard");
+  const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false); // ref guard prevents stale closure issues
 
   useEffect(() => {
     getSession(sessionId)
@@ -49,36 +55,38 @@ export default function ChatSessionPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, reflectionResult]);
 
-  const doSend = useCallback(
-    async (text: string) => {
-      if (!text.trim() || sending) return;
+  async function doSend(text: string) {
+    if (!text.trim() || sendingRef.current) return;
 
-      setSending(true);
-      const tempUserMsg: Message = {
-        id: "temp-" + Date.now(),
-        conversation_id: sessionId,
-        role: "user",
-        content: text,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, tempUserMsg]);
+    sendingRef.current = true;
+    setSending(true);
+    setError("");
 
-      try {
-        const result = await sendMessage(sessionId, text, mode);
-        setMessages((prev) => [
-          ...prev.filter((m) => m.id !== tempUserMsg.id),
-          result.user_message,
-          result.ai_message,
-        ]);
-      } catch (err: any) {
-        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-        alert("Failed to send: " + err.message);
-      } finally {
-        setSending(false);
-      }
-    },
-    [sessionId, mode, sending]
-  );
+    const tempId = "temp-" + Date.now();
+    const tempUserMsg: Message = {
+      id: tempId,
+      conversation_id: sessionId,
+      role: "user",
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    try {
+      const result = await sendMessage(sessionId, text, mode);
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== tempId),
+        result.user_message,
+        result.ai_message,
+      ]);
+    } catch (err: any) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setError(err.message || "Failed to send message");
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,12 +104,13 @@ export default function ChatSessionPage() {
     if (reflecting || messages.length === 0) return;
     setReflecting(true);
     setReflectionResult(null);
+    setError("");
 
     try {
       const result = await generateReflection(sessionId);
       setReflectionResult(result);
     } catch (err: any) {
-      alert("Reflection failed: " + err.message);
+      setError("Reflection failed: " + err.message);
     } finally {
       setReflecting(false);
     }
@@ -116,7 +125,6 @@ export default function ChatSessionPage() {
   }
 
   const actionChips = getActionChips();
-  // Find last assistant message index for showing action chips
   let lastAssistantIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "assistant") {
@@ -185,7 +193,6 @@ export default function ChatSessionPage() {
               <div className="text-xs text-gray-400 mb-1">Mentor</div>
               <div className="px-5 py-4 rounded-xl bg-white border border-gray-100">
                 <MarkdownMessage content={msg.content} />
-                {/* Action chips on the last assistant message only */}
                 {idx === lastAssistantIdx && !sending && (
                   <MessageActions
                     chips={actionChips}
@@ -207,6 +214,20 @@ export default function ChatSessionPage() {
           </div>
         )}
 
+        {/* Error toast */}
+        {error && (
+          <div className="max-w-[85%] mx-auto flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+            <AlertCircle size={14} className="text-red-500 shrink-0" />
+            <span className="text-xs text-red-600 flex-1">{error}</span>
+            <button
+              onClick={() => setError("")}
+              className="text-xs text-red-400 hover:text-red-600"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Reflection Result */}
         {reflectionResult && (
           <div className="max-w-[90%] mx-auto my-6 p-5 bg-gradient-to-br from-brand-50 to-white border border-brand-100 rounded-xl space-y-4">
@@ -214,7 +235,6 @@ export default function ChatSessionPage() {
               <CheckCircle size={16} />
               Reflection Complete
             </div>
-
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">
                 Summary
@@ -223,7 +243,6 @@ export default function ChatSessionPage() {
                 {reflectionResult.reflection.summary}
               </p>
             </div>
-
             {reflectionResult.knowledge_nodes.length > 0 && (
               <div>
                 <div className="text-xs font-medium text-gray-500 mb-2">
@@ -251,7 +270,6 @@ export default function ChatSessionPage() {
                 </div>
               </div>
             )}
-
             {reflectionResult.capability_nodes.length > 0 && (
               <div>
                 <div className="text-xs font-medium text-gray-500 mb-2">
@@ -279,27 +297,26 @@ export default function ChatSessionPage() {
                 </div>
               </div>
             )}
-
             <div className="flex gap-2 pt-2">
               <Link
                 href="/knowledge"
                 className="text-xs text-brand-600 hover:underline"
               >
-                View Knowledge Cards
+                Knowledge Cards
               </Link>
               <span className="text-gray-300">|</span>
               <Link
                 href="/capabilities"
                 className="text-xs text-brand-600 hover:underline"
               >
-                View Capabilities
+                Capabilities
               </Link>
               <span className="text-gray-300">|</span>
               <Link
                 href="/dashboard"
                 className="text-xs text-brand-600 hover:underline"
               >
-                View Dashboard
+                Dashboard
               </Link>
             </div>
           </div>
@@ -308,7 +325,7 @@ export default function ChatSessionPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       <div className="border-t border-gray-100 bg-white">
         <form onSubmit={handleSubmit} className="p-4">
           <div className="flex items-center gap-2 max-w-3xl mx-auto">
