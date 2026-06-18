@@ -31,6 +31,9 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	authSvc := service.NewAuthService(db, cfg)
 	chatSvc := service.NewChatService(db, aiProvider)
 	reflectionSvc := service.NewReflectionService(db, aiProvider)
+	interviewSvc := service.NewInterviewService(db, aiProvider)
+	projectSvc := service.NewProjectService(db, aiProvider)
+	roadmapSvc := service.NewRoadmapService(db, aiProvider)
 
 	// Handlers
 	authH := handler.NewAuthHandler(authSvc, cfg)
@@ -39,13 +42,16 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	knowledgeH := handler.NewKnowledgeHandler(db)
 	capabilityH := handler.NewCapabilityHandler(db)
 	dashboardH := handler.NewDashboardHandler(db)
+	interviewH := handler.NewInterviewHandler(interviewSvc)
+	projectH := handler.NewProjectHandler(projectSvc)
+	roadmapH := handler.NewRoadmapHandler(roadmapSvc)
 
 	// Health
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "mentor-os-api"})
 	})
 
-	// Auth routes (public)
+	// Auth (public)
 	auth := r.Group("/auth")
 	{
 		auth.POST("/register", authH.Register)
@@ -54,16 +60,14 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	}
 
 	// Protected routes
-	protected := r.Group("")
-	protected.Use(middleware.AuthRequired(authSvc))
+	p := r.Group("")
+	p.Use(middleware.AuthRequired(authSvc))
 	{
-		protected.GET("/auth/me", authH.Me)
-
-		// Dashboard
-		protected.GET("/dashboard", dashboardH.Get)
+		p.GET("/auth/me", authH.Me)
+		p.GET("/dashboard", dashboardH.Get)
 
 		// Chat
-		chat := protected.Group("/chat/sessions")
+		chat := p.Group("/chat/sessions")
 		{
 			chat.POST("", chatH.CreateSession)
 			chat.GET("", chatH.ListSessions)
@@ -73,17 +77,43 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		}
 
 		// Knowledge
-		knowledge := protected.Group("/knowledge")
+		knowledge := p.Group("/knowledge")
 		{
 			knowledge.GET("", knowledgeH.List)
 			knowledge.GET("/:id", knowledgeH.Get)
 		}
 
 		// Capabilities
-		capabilities := protected.Group("/capabilities")
+		capabilities := p.Group("/capabilities")
 		{
 			capabilities.GET("", capabilityH.List)
 			capabilities.GET("/:id", capabilityH.Get)
+		}
+
+		// Interview
+		interview := p.Group("/interview")
+		{
+			interview.GET("/topics", interviewH.GetTopics)
+			interview.POST("/start", interviewH.Start)
+			interview.POST("/:id/answer", interviewH.Answer)
+			interview.POST("/:id/evaluate", interviewH.Evaluate)
+		}
+
+		// Projects
+		projects := p.Group("/projects")
+		{
+			projects.POST("", projectH.Create)
+			projects.GET("", projectH.List)
+			projects.GET("/:id", projectH.Get)
+			projects.POST("/:id/analyze", projectH.Analyze)
+		}
+
+		// Roadmap
+		roadmap := p.Group("/roadmap")
+		{
+			roadmap.GET("", roadmapH.List)
+			roadmap.POST("/generate", roadmapH.Generate)
+			roadmap.PUT("/:id/status", roadmapH.UpdateStatus)
 		}
 	}
 

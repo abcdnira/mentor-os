@@ -104,6 +104,67 @@ export function listCapabilities() {
   return request<CapabilityNode[]>("/capabilities");
 }
 
+// Interview
+export function getInterviewTopics() {
+  return request<Record<string, string>>("/interview/topics");
+}
+
+export function startInterview(topic: string) {
+  return request<{ conversation: Conversation; first_message: Message }>(
+    "/interview/start",
+    { method: "POST", body: JSON.stringify({ topic }) }
+  );
+}
+
+export function sendInterviewAnswer(sessionId: string, content: string, topic: string) {
+  return request<{ user_message: Message; ai_message: Message }>(
+    `/interview/${sessionId}/answer`,
+    { method: "POST", body: JSON.stringify({ content, topic }) }
+  );
+}
+
+export function evaluateInterview(sessionId: string) {
+  return request<EvaluationResult>(`/interview/${sessionId}/evaluate`, {
+    method: "POST",
+  });
+}
+
+// Projects
+export function createProject(input: CreateProjectInput) {
+  return request<ProjectNode>("/projects", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function listProjects() {
+  return request<ProjectNode[]>("/projects");
+}
+
+export function getProject(id: string) {
+  return request<ProjectNode>(`/projects/${id}`);
+}
+
+export function analyzeProject(id: string) {
+  return request<ProjectNode>(`/projects/${id}/analyze`, { method: "POST" });
+}
+
+// Roadmap
+export function listRoadmap() {
+  return request<RoadmapItem[]>("/roadmap");
+}
+
+export function generateRoadmap() {
+  return request<RoadmapItem[]>("/roadmap/generate", { method: "POST" });
+}
+
+export function updateRoadmapStatus(id: string, status: string) {
+  return request<{ status: string }>(`/roadmap/${id}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  });
+}
+
 // Types
 export interface User {
   id: string;
@@ -184,4 +245,53 @@ export interface DashboardData {
   recent_knowledge: KnowledgeNode[];
   recent_reflections: Reflection[];
   next_actions: string[];
+}
+
+export interface EvaluationResult {
+  overall_score: number;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  next_actions: string[];
+  knowledge_nodes: KnowledgeNode[];
+  capability_nodes: CapabilityNode[];
+}
+
+export interface CreateProjectInput {
+  name: string;
+  background: string;
+  tech_stack: string[];
+  modules: string[];
+  responsibilities: string;
+  challenges: string;
+}
+
+export interface ProjectNode {
+  id: string;
+  user_id: string;
+  name: string;
+  background: string;
+  tech_stack: string[];
+  modules: string[];
+  responsibilities: string;
+  challenges: string;
+  ai_summary: string;
+  ai_highlights: string[];
+  ai_resume: string;
+  ai_interview_answer: string;
+  ai_followups: string[];
+  ai_mindmap: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoadmapItem {
+  id: string;
+  title: string;
+  reason: string;
+  priority: number;
+  status: string;
+  next_action: string;
+  sort_order: number;
 }

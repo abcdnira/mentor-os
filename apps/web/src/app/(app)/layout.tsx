@@ -8,6 +8,9 @@ import {
   MessageSquare,
   BookOpen,
   BarChart3,
+  GraduationCap,
+  Briefcase,
+  Map,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -17,8 +20,11 @@ import { cn } from "@/lib/cn";
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/chat", label: "Mentor Chat", icon: MessageSquare },
+  { href: "/interview", label: "Interview", icon: GraduationCap },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/capabilities", label: "Capabilities", icon: BarChart3 },
+  { href: "/projects", label: "Projects", icon: Briefcase },
+  { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
