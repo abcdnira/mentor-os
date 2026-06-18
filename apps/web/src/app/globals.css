@@ -85,7 +85,7 @@ body {
 
 /* Blockquote */
 .mentor-markdown blockquote {
-  @apply my-4 pl-4 py-0.5 border-l-[3px] border-brand-300 bg-brand-50/30 rounded-r-lg;
+  @apply my-4 pl-4 py-0.5 border-l-[3px] border-brand-200 bg-brand-50/30 rounded-r-lg;
 }
 
 .mentor-markdown blockquote p {
@@ -100,7 +100,7 @@ body {
 
 /* Horizontal rule */
 .mentor-markdown hr {
-  @apply my-5 border-gray-150;
+  @apply my-5 border-gray-200;
 }
 
 /* Links */
