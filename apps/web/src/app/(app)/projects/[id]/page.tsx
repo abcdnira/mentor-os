@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { getProject, analyzeProject, type ProjectNode } from "@/lib/api";
 
@@ -13,6 +13,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<ProjectNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getProject(params.id as string)
@@ -24,11 +25,12 @@ export default function ProjectDetailPage() {
   async function handleAnalyze() {
     if (analyzing || !project) return;
     setAnalyzing(true);
+    setError("");
     try {
       const updated = await analyzeProject(project.id);
       setProject(updated);
     } catch (err: any) {
-      alert("Analysis failed: " + err.message);
+      setError("Analysis failed: " + err.message);
     } finally {
       setAnalyzing(false);
     }
@@ -54,6 +56,14 @@ export default function ProjectDetailPage() {
           </button>
         )}
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+          <AlertCircle size={14} className="text-red-500 shrink-0" />
+          <span className="text-xs text-red-600 flex-1">{error}</span>
+          <button onClick={() => setError("")} className="text-xs text-red-400 hover:text-red-600">Dismiss</button>
+        </div>
+      )}
 
       {/* Basic info */}
       <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-3">

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Loader2, Trophy } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Trophy, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { MarkdownMessage } from "@/components/markdown-message";
 import {
@@ -27,6 +27,8 @@ export default function InterviewSessionPage() {
   const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
+  const [error, setError] = useState("");
+  const sendingRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,42 +42,43 @@ export default function InterviewSessionPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, evalResult]);
 
-  const doSend = useCallback(async (text: string) => {
-    if (!text.trim() || sending) return;
+  async function doSend(text: string) {
+    if (!text.trim() || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
+    setError("");
 
+    const tempId = "temp-" + Date.now();
     const tempMsg: Message = {
-      id: "temp-" + Date.now(),
-      conversation_id: sessionId,
-      role: "user",
-      content: text,
-      created_at: new Date().toISOString(),
+      id: tempId, conversation_id: sessionId, role: "user",
+      content: text, created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempMsg]);
 
     try {
       const result = await sendInterviewAnswer(sessionId, text, topic);
       setMessages((prev) => [
-        ...prev.filter((m) => m.id !== tempMsg.id),
-        result.user_message,
-        result.ai_message,
+        ...prev.filter((m) => m.id !== tempId),
+        result.user_message, result.ai_message,
       ]);
     } catch (err: any) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
-      alert("Failed: " + err.message);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setError(err.message || "Failed to send");
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
-  }, [sessionId, topic, sending]);
+  }
 
   async function handleEvaluate() {
     if (evaluating) return;
     setEvaluating(true);
+    setError("");
     try {
       const result = await evaluateInterview(sessionId);
       setEvalResult(result);
     } catch (err: any) {
-      alert("Evaluation failed: " + err.message);
+      setError("Evaluation failed: " + err.message);
     } finally {
       setEvaluating(false);
     }
@@ -148,12 +151,19 @@ export default function InterviewSessionPage() {
           </div>
         )}
 
+        {error && (
+          <div className="max-w-[85%] mx-auto flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+            <AlertCircle size={14} className="text-red-500 shrink-0" />
+            <span className="text-xs text-red-600 flex-1">{error}</span>
+            <button onClick={() => setError("")} className="text-xs text-red-400 hover:text-red-600">Dismiss</button>
+          </div>
+        )}
+
         {evalResult && (
           <div className="max-w-[90%] mx-auto my-6 p-5 bg-gradient-to-br from-green-50 to-white border border-green-100 rounded-xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-green-700 font-medium text-sm">
-                <Trophy size={16} />
-                Interview Evaluation
+                <Trophy size={16} /> Interview Evaluation
               </div>
               <div className="text-2xl font-bold text-green-700">{evalResult.overall_score}/100</div>
             </div>
@@ -176,7 +186,7 @@ export default function InterviewSessionPage() {
               <div>
                 <div className="text-xs font-medium text-gray-500 mb-1">Next Actions</div>
                 <ul className="text-xs text-gray-600 space-y-1">
-                  {evalResult.next_actions.map((a, i) => <li key={i}>{i+1}. {a}</li>)}
+                  {evalResult.next_actions.map((a, i) => <li key={i}>{i + 1}. {a}</li>)}
                 </ul>
               </div>
             )}
@@ -192,14 +202,9 @@ export default function InterviewSessionPage() {
 
       <form onSubmit={handleSubmit} className="p-4 border-t border-gray-100 bg-white">
         <div className="flex items-center gap-2 max-w-3xl mx-auto">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your answer..."
-            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            disabled={sending}
-          />
+          <input type="text" value={input} onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your answer..." disabled={sending}
+            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
           <button type="submit" disabled={sending || !input.trim()}
             className="p-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
             <Send size={16} />
