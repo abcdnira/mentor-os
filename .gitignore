@@ -1,0 +1,9 @@
+.env
+infra/nginx/ssl/
+storage/
+node_modules/
+.next/
+dist/
+build/
+*.log
+.DS_Store
