@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+// CJS path — avoids ESM resolution issues in Next.js standalone builds
+import oneDark from "react-syntax-highlighter/dist/cjs/styles/prism/one-dark";
 import { Check, Copy } from "lucide-react";
 
 const LANG_LABELS: Record<string, string> = {
@@ -57,19 +60,33 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
           )}
         </button>
       </div>
-      <div className="overflow-x-auto">
-        <pre className="p-4 m-0 text-[13px] leading-[1.7] text-slate-100">
-          <code
-            className="font-mono"
-            style={{
-              fontFamily:
-                'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-            }}
-          >
-            {code}
-          </code>
-        </pre>
-      </div>
+      <SyntaxHighlighter
+        language={lang || "text"}
+        style={oneDark}
+        customStyle={{
+          margin: 0,
+          padding: "1rem 1.25rem",
+          background: "transparent",
+          fontSize: "13px",
+          lineHeight: "1.7",
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily:
+              'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+          },
+        }}
+        showLineNumbers={code.split("\n").length > 5}
+        lineNumberStyle={{
+          minWidth: "2.5em",
+          paddingRight: "1em",
+          color: "#4b5263",
+          fontSize: "12px",
+        }}
+        wrapLongLines={false}
+      >
+        {code}
+      </SyntaxHighlighter>
     </div>
   );
 }
