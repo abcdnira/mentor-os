@@ -1,0 +1,10 @@
+flowchart TD
+    U[User Browser] --> FE[Next.js Frontend]
+    FE --> API[Golang Gin API]
+    API --> DB[(PostgreSQL + pgvector)]
+    API --> AI[LLM API]
+    API --> REF[Reflection Service]
+    REF --> DB
+    API --> MENTOR[Mentor Orchestrator]
+    MENTOR --> SKILLS[Skills]
+    SKILLS --> AI
