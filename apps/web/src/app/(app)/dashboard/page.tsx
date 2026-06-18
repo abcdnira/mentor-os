@@ -1,15 +1,49 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, ArrowRight } from "lucide-react";
+import {
+  MessageSquare,
+  ArrowRight,
+  BookOpen,
+  BarChart3,
+  Sparkles,
+  ChevronRight,
+} from "lucide-react";
+import { getDashboard, type DashboardData } from "@/lib/api";
 
 export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDashboard()
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="text-sm text-gray-400">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  const hasCaps = data && data.capabilities && data.capabilities.length > 0;
+  const hasKnowledge =
+    data && data.recent_knowledge && data.recent_knowledge.length > 0;
+  const hasReflections =
+    data && data.recent_reflections && data.recent_reflections.length > 0;
+  const hasActions =
+    data && data.next_actions && data.next_actions.length > 0;
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Your growth overview. Start a conversation to build your knowledge.
+          Your growth overview
         </p>
       </div>
 
@@ -35,39 +69,137 @@ export default function DashboardPage() {
         />
       </Link>
 
-      {/* Placeholder cards */}
       <div className="grid grid-cols-2 gap-4">
+        {/* Capabilities */}
         <div className="p-5 bg-white border border-gray-100 rounded-xl">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
-            Capabilities
-          </h3>
-          <p className="text-xs text-gray-400">
-            Complete a reflection to see your capability profile.
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+              <BarChart3 size={14} className="text-gray-400" />
+              Capabilities
+            </h3>
+            {hasCaps && (
+              <Link
+                href="/capabilities"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                View all
+              </Link>
+            )}
+          </div>
+          {hasCaps ? (
+            <div className="space-y-2">
+              {data!.capabilities.slice(0, 5).map((c) => (
+                <div key={c.id} className="flex items-center justify-between">
+                  <span className="text-xs text-gray-700 truncate flex-1">
+                    {c.name}
+                  </span>
+                  <div className="flex items-center gap-2 ml-2">
+                    <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-500 rounded-full"
+                        style={{ width: `${c.score}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-500 w-7 text-right">
+                      {c.score}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Complete a reflection to see your capability profile.
+            </p>
+          )}
         </div>
+
+        {/* Knowledge Cards */}
         <div className="p-5 bg-white border border-gray-100 rounded-xl">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
-            Knowledge Cards
-          </h3>
-          <p className="text-xs text-gray-400">
-            Your knowledge cards will appear here after reflections.
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+              <BookOpen size={14} className="text-gray-400" />
+              Knowledge Cards
+            </h3>
+            {hasKnowledge && (
+              <Link
+                href="/knowledge"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                View all
+              </Link>
+            )}
+          </div>
+          {hasKnowledge ? (
+            <div className="space-y-2">
+              {data!.recent_knowledge.map((k) => (
+                <Link
+                  key={k.id}
+                  href={`/knowledge/${k.id}`}
+                  className="flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <span className="text-xs text-gray-700 truncate flex-1">
+                    {k.title}
+                  </span>
+                  <span className="text-xs text-brand-600 font-medium ml-2">
+                    {k.mastery_score}/100
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Your knowledge cards will appear here after reflections.
+            </p>
+          )}
         </div>
+
+        {/* Recent Reflections */}
         <div className="p-5 bg-white border border-gray-100 rounded-xl">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
+          <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5 mb-3">
+            <Sparkles size={14} className="text-gray-400" />
             Recent Reflections
           </h3>
-          <p className="text-xs text-gray-400">
-            No reflections yet. Chat with your mentor first.
-          </p>
+          {hasReflections ? (
+            <div className="space-y-2">
+              {data!.recent_reflections.map((r) => (
+                <div key={r.id} className="text-xs text-gray-600 leading-relaxed">
+                  <div className="text-gray-400 mb-0.5">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </div>
+                  <div className="line-clamp-2">{r.summary}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              No reflections yet. Chat with your mentor first.
+            </p>
+          )}
         </div>
+
+        {/* Next Actions */}
         <div className="p-5 bg-white border border-gray-100 rounded-xl">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
+          <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5 mb-3">
+            <ChevronRight size={14} className="text-gray-400" />
             Next Actions
           </h3>
-          <p className="text-xs text-gray-400">
-            Your action items will be generated from reflections.
-          </p>
+          {hasActions ? (
+            <ul className="space-y-1.5">
+              {data!.next_actions.map((action, i) => (
+                <li key={i} className="text-xs text-gray-600 flex gap-2">
+                  <span className="text-brand-500 font-bold shrink-0">
+                    {i + 1}.
+                  </span>
+                  {action}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-gray-400">
+              Your action items will be generated from reflections.
+            </p>
+          )}
         </div>
       </div>
     </div>

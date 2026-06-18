@@ -21,17 +21,24 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORS(cfg))
 
-	// Services
-	authSvc := service.NewAuthService(db, cfg)
+	// AI Provider
 	aiProvider, err := ai.NewProvider(cfg)
 	if err != nil {
 		log.Fatalf("failed to create AI provider: %v", err)
 	}
+
+	// Services
+	authSvc := service.NewAuthService(db, cfg)
 	chatSvc := service.NewChatService(db, aiProvider)
+	reflectionSvc := service.NewReflectionService(db, aiProvider)
 
 	// Handlers
 	authH := handler.NewAuthHandler(authSvc, cfg)
 	chatH := handler.NewChatHandler(chatSvc)
+	reflectionH := handler.NewReflectionHandler(reflectionSvc)
+	knowledgeH := handler.NewKnowledgeHandler(db)
+	capabilityH := handler.NewCapabilityHandler(db)
+	dashboardH := handler.NewDashboardHandler(db)
 
 	// Health
 	r.GET("/health", func(c *gin.Context) {
@@ -52,12 +59,31 @@ func Setup(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	{
 		protected.GET("/auth/me", authH.Me)
 
+		// Dashboard
+		protected.GET("/dashboard", dashboardH.Get)
+
+		// Chat
 		chat := protected.Group("/chat/sessions")
 		{
 			chat.POST("", chatH.CreateSession)
 			chat.GET("", chatH.ListSessions)
 			chat.GET("/:id", chatH.GetSession)
 			chat.POST("/:id/messages", chatH.SendMessage)
+			chat.POST("/:id/reflection", reflectionH.GenerateReflection)
+		}
+
+		// Knowledge
+		knowledge := protected.Group("/knowledge")
+		{
+			knowledge.GET("", knowledgeH.List)
+			knowledge.GET("/:id", knowledgeH.Get)
+		}
+
+		// Capabilities
+		capabilities := protected.Group("/capabilities")
+		{
+			capabilities.GET("", capabilityH.List)
+			capabilities.GET("/:id", capabilityH.Get)
 		}
 	}
 

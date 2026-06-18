@@ -2,10 +2,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
-import { getSession, sendMessage, type Message } from "@/lib/api";
+import {
+  getSession,
+  sendMessage,
+  generateReflection,
+  type Message,
+  type ReflectionResult,
+} from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 export default function ChatSessionPage() {
@@ -18,6 +24,9 @@ export default function ChatSessionPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reflecting, setReflecting] = useState(false);
+  const [reflectionResult, setReflectionResult] =
+    useState<ReflectionResult | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +41,7 @@ export default function ChatSessionPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, reflectionResult]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +51,6 @@ export default function ChatSessionPage() {
     setInput("");
     setSending(true);
 
-    // Optimistic: show user message immediately
     const tempUserMsg: Message = {
       id: "temp-" + Date.now(),
       conversation_id: sessionId,
@@ -54,18 +62,31 @@ export default function ChatSessionPage() {
 
     try {
       const result = await sendMessage(sessionId, text);
-      // Replace temp message with real ones
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== tempUserMsg.id),
         result.user_message,
         result.ai_message,
       ]);
     } catch (err: any) {
-      // Remove temp message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
       alert("Failed to send: " + err.message);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleReflection() {
+    if (reflecting || messages.length === 0) return;
+    setReflecting(true);
+    setReflectionResult(null);
+
+    try {
+      const result = await generateReflection(sessionId);
+      setReflectionResult(result);
+    } catch (err: any) {
+      alert("Reflection failed: " + err.message);
+    } finally {
+      setReflecting(false);
     }
   }
 
@@ -87,7 +108,32 @@ export default function ChatSessionPage() {
         >
           <ArrowLeft size={16} className="text-gray-500" />
         </Link>
-        <h3 className="text-sm font-medium text-gray-900 truncate">{title}</h3>
+        <h3 className="text-sm font-medium text-gray-900 truncate flex-1">
+          {title}
+        </h3>
+        {/* Reflection button */}
+        <button
+          onClick={handleReflection}
+          disabled={reflecting || messages.length === 0}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition",
+            reflecting
+              ? "bg-amber-50 text-amber-600"
+              : "bg-brand-50 text-brand-600 hover:bg-brand-100"
+          )}
+        >
+          {reflecting ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              Reflecting...
+            </>
+          ) : (
+            <>
+              <Sparkles size={14} />
+              Generate Reflection
+            </>
+          )}
+        </button>
       </div>
 
       {/* Messages */}
@@ -134,6 +180,102 @@ export default function ChatSessionPage() {
             <div className="text-xs text-gray-400 mb-1">Mentor</div>
             <div className="px-4 py-3 rounded-xl bg-white border border-gray-100">
               <Loader2 size={16} className="animate-spin text-gray-400" />
+            </div>
+          </div>
+        )}
+
+        {/* Reflection Result */}
+        {reflectionResult && (
+          <div className="max-w-[90%] mx-auto my-6 p-5 bg-gradient-to-br from-brand-50 to-white border border-brand-100 rounded-xl space-y-4">
+            <div className="flex items-center gap-2 text-brand-700 font-medium text-sm">
+              <CheckCircle size={16} />
+              Reflection Complete
+            </div>
+
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">
+                Summary
+              </div>
+              <p className="text-sm text-gray-800">
+                {reflectionResult.reflection.summary}
+              </p>
+            </div>
+
+            {reflectionResult.knowledge_nodes.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-2">
+                  Knowledge Cards Generated
+                </div>
+                <div className="space-y-2">
+                  {reflectionResult.knowledge_nodes.map((k) => (
+                    <div
+                      key={k.id}
+                      className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-100"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {k.title}
+                        </div>
+                        <div className="text-xs text-gray-500">{k.summary}</div>
+                      </div>
+                      <div className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-1 rounded">
+                        {k.mastery_score}/100
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {reflectionResult.capability_nodes.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-2">
+                  Capability Updates
+                </div>
+                <div className="space-y-2">
+                  {reflectionResult.capability_nodes.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-100"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {c.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {c.category}
+                        </div>
+                      </div>
+                      <div className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                        {c.score}/100
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Link
+                href="/knowledge"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                View Knowledge Cards
+              </Link>
+              <span className="text-gray-300">|</span>
+              <Link
+                href="/capabilities"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                View Capabilities
+              </Link>
+              <span className="text-gray-300">|</span>
+              <Link
+                href="/dashboard"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                View Dashboard
+              </Link>
             </div>
           </div>
         )}
