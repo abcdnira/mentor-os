@@ -1,7 +1,8 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
@@ -10,11 +11,11 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    current_role TEXT,
-    target_role TEXT,
+    "current_role" TEXT,
+    "target_role" TEXT,
     main_stack JSONB DEFAULT '[]',
     career_goals JSONB DEFAULT '[]',
     thinking_style JSONB DEFAULT '{}',
@@ -23,29 +24,29 @@ CREATE TABLE user_profiles (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT,
-    type VARCHAR(50) DEFAULT 'mentor_chat',
+    "type" VARCHAR(50) DEFAULT 'mentor_chat',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    role VARCHAR(20) NOT NULL,
-    content TEXT NOT NULL,
+    "role" VARCHAR(20) NOT NULL,
+    "content" TEXT NOT NULL,
     metadata JSONB,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
 
-CREATE TABLE reflections (
+CREATE TABLE IF NOT EXISTS reflections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
@@ -58,9 +59,9 @@ CREATE TABLE reflections (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_reflections_user_id ON reflections(user_id);
+CREATE INDEX IF NOT EXISTS idx_reflections_user_id ON reflections(user_id);
 
-CREATE TABLE knowledge_nodes (
+CREATE TABLE IF NOT EXISTS knowledge_nodes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -75,9 +76,9 @@ CREATE TABLE knowledge_nodes (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_knowledge_nodes_user_id ON knowledge_nodes(user_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_nodes_user_id ON knowledge_nodes(user_id);
 
-CREATE TABLE capability_nodes (
+CREATE TABLE IF NOT EXISTS capability_nodes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -89,4 +90,4 @@ CREATE TABLE capability_nodes (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_capability_nodes_user_id ON capability_nodes(user_id);
+CREATE INDEX IF NOT EXISTS idx_capability_nodes_user_id ON capability_nodes(user_id);
