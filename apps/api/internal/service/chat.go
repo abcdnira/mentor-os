@@ -20,7 +20,7 @@ func NewChatService(db *gorm.DB, provider ai.Provider) *ChatService {
 	return &ChatService{db: db, provider: provider}
 }
 
-const mentorSystemPrompt = `You are Mentor, an AI growth mentor in Mentor OS.
+const mentorBasePrompt = `You are Mentor, an AI growth mentor in Mentor OS.
 
 Your role is NOT just to answer questions. You must:
 1. Understand what the user truly wants to solve
@@ -33,25 +33,77 @@ Your role is NOT just to answer questions. You must:
 ## Response Format (IMPORTANT)
 
 Always respond in well-structured Markdown:
-- Use **## headings** to organize sections (e.g. "## 结论", "## 原理", "## 项目结合", "## 面试表达")
+- Use **## headings** to organize sections
 - Use **bold** for key terms and important concepts
-- Use bullet lists or numbered lists for multiple points — never dump a wall of text
-- Use inline code backticks for technical terms, function names, types (e.g. ` + "`sync.Map`" + `, ` + "`O(1)`" + `)
+- Use bullet lists or numbered lists for multiple points
+- Use inline code backticks for technical terms, function names, types
 - Use fenced code blocks with language tags for code examples
 - Use > blockquotes for important takeaways or interview tips
 - Use tables when comparing multiple items
-- Use mermaid code blocks (` + "```mermaid" + `) for flowcharts, architecture diagrams, or process flows when they help clarify
+- Use mermaid code blocks for flowcharts or architecture diagrams when helpful
 - Keep paragraphs short (2-4 sentences max)
 
-For technical questions, structure your answer as:
-1. **结论** — direct answer first
-2. **原理** — explain the why
-3. **代码示例** — if applicable
-4. **项目结合** — how this applies in real projects
-5. **面试表达** — how to articulate this in an interview
-
-Keep responses focused, practical, and growth-oriented.
 Respond in the same language as the user's message.`
+
+const modeQuick = `
+## Answer Density: QUICK MODE
+
+You MUST keep your response extremely concise:
+- Total length: 150-250 Chinese characters (or ~80-120 English words)
+- Structure:
+  1. **一句话结论** — one sentence direct answer
+  2. **核心要点** — exactly 3 bullet points, each one line
+  3. **下一步** — one actionable next step
+- NO code blocks, NO tables, NO mermaid diagrams
+- NO detailed explanations
+- If the user needs more, they will ask`
+
+const modeStandard = `
+## Answer Density: STANDARD MODE
+
+Keep your response focused and moderate:
+- Total length: 400-700 Chinese characters (or ~200-350 English words)
+- Structure for technical questions:
+  1. **结论** — direct answer first (2-3 sentences)
+  2. **原理** — explain the why (short paragraph)
+  3. **项目结合** — one practical example (2-3 sentences)
+  4. **面试表达** — how to say this in an interview (2-3 sentences)
+  5. **下一步** — one next action
+- Use code blocks only when essential (keep short)
+- Do NOT write exhaustive explanations
+- Prefer clarity over completeness`
+
+const modeDeep = `
+## Answer Density: DEEP MODE
+
+Provide a thorough, well-structured deep-dive:
+- No strict length limit, but use clear sections
+- Structure for technical questions:
+  1. **结论** — direct answer
+  2. **原理** — detailed explanation with diagrams if helpful
+  3. **代码示例** — working code examples with comments
+  4. **对比** — use tables to compare alternatives
+  5. **易错点** — common mistakes and pitfalls
+  6. **项目结合** — real-world application scenarios
+  7. **面试表达** — full interview answer framework
+  8. **延伸** — related topics and follow-up questions
+  9. **下一步** — prioritized action items
+- Use mermaid diagrams for flows and architecture
+- Use tables for comparisons
+- Each section must have clear headings`
+
+func buildSystemPrompt(mode string) string {
+	prompt := mentorBasePrompt
+	switch mode {
+	case "quick":
+		prompt += modeQuick
+	case "deep":
+		prompt += modeDeep
+	default:
+		prompt += modeStandard
+	}
+	return prompt
+}
 
 type CreateSessionInput struct {
 	Title string `json:"title"`
@@ -97,7 +149,8 @@ func (s *ChatService) GetSession(userID, sessionID uuid.UUID) (*model.Conversati
 }
 
 type SendMessageInput struct {
-	Content string `json:"content" binding:"required"`
+	Content      string `json:"content" binding:"required"`
+	ResponseMode string `json:"response_mode"`
 }
 
 type SendMessageResult struct {
@@ -106,13 +159,11 @@ type SendMessageResult struct {
 }
 
 func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UUID, input SendMessageInput) (*SendMessageResult, error) {
-	// Verify ownership
 	var conv model.Conversation
 	if err := s.db.Where("id = ? AND user_id = ?", sessionID, userID).First(&conv).Error; err != nil {
 		return nil, errors.New("conversation not found")
 	}
 
-	// Save user message
 	userMsg := model.Message{
 		ID:             uuid.New(),
 		ConversationID: sessionID,
@@ -123,13 +174,12 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UU
 		return nil, err
 	}
 
-	// Load conversation history for context
 	var history []model.Message
 	s.db.Where("conversation_id = ?", sessionID).Order("created_at ASC").Find(&history)
 
-	// Build messages for AI
+	systemPrompt := buildSystemPrompt(input.ResponseMode)
 	aiMessages := []ai.Message{
-		{Role: "system", Content: mentorSystemPrompt},
+		{Role: "system", Content: systemPrompt},
 	}
 	for _, msg := range history {
 		if msg.Role == "system" {
@@ -141,13 +191,11 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UU
 		})
 	}
 
-	// Call AI
 	reply, err := s.provider.Chat(ctx, aiMessages)
 	if err != nil {
 		return nil, err
 	}
 
-	// Save AI message
 	aiMsg := model.Message{
 		ID:             uuid.New(),
 		ConversationID: sessionID,
@@ -158,7 +206,6 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UU
 		return nil, err
 	}
 
-	// Update conversation title from first message
 	if conv.Title == "New Chat" {
 		title := input.Content
 		if len(title) > 50 {
@@ -167,7 +214,6 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, sessionID uuid.UU
 		s.db.Model(&conv).Update("title", title)
 	}
 
-	// Touch updated_at
 	s.db.Model(&conv).Update("updated_at", aiMsg.CreatedAt)
 
 	return &SendMessageResult{

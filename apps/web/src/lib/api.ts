@@ -65,12 +65,19 @@ export function getSession(id: string) {
   return request<Conversation>(`/chat/sessions/${id}`);
 }
 
-export function sendMessage(sessionId: string, content: string) {
+export function sendMessage(
+  sessionId: string,
+  content: string,
+  responseMode?: string
+) {
   return request<{ user_message: Message; ai_message: Message }>(
     `/chat/sessions/${sessionId}/messages`,
     {
       method: "POST",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        content,
+        response_mode: responseMode || "standard",
+      }),
     }
   );
 }

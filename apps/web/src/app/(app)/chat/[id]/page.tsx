@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { MarkdownMessage } from "@/components/markdown-message";
+import {
+  MessageActions,
+  getActionChips,
+} from "@/components/message-actions";
+import { ModeSelector, type ResponseMode } from "@/components/mode-selector";
 import {
   getSession,
   sendMessage,
@@ -27,6 +32,7 @@ export default function ChatSessionPage() {
   const [reflecting, setReflecting] = useState(false);
   const [reflectionResult, setReflectionResult] =
     useState<ReflectionResult | null>(null);
+  const [mode, setMode] = useState<ResponseMode>("standard");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,36 +49,47 @@ export default function ChatSessionPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, reflectionResult]);
 
-  async function handleSend(e: React.FormEvent) {
+  const doSend = useCallback(
+    async (text: string) => {
+      if (!text.trim() || sending) return;
+
+      setSending(true);
+      const tempUserMsg: Message = {
+        id: "temp-" + Date.now(),
+        conversation_id: sessionId,
+        role: "user",
+        content: text,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, tempUserMsg]);
+
+      try {
+        const result = await sendMessage(sessionId, text, mode);
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== tempUserMsg.id),
+          result.user_message,
+          result.ai_message,
+        ]);
+      } catch (err: any) {
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        alert("Failed to send: " + err.message);
+      } finally {
+        setSending(false);
+      }
+    },
+    [sessionId, mode, sending]
+  );
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || sending) return;
-
+    if (!text) return;
     setInput("");
-    setSending(true);
+    doSend(text);
+  }
 
-    const tempUserMsg: Message = {
-      id: "temp-" + Date.now(),
-      conversation_id: sessionId,
-      role: "user",
-      content: text,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, tempUserMsg]);
-
-    try {
-      const result = await sendMessage(sessionId, text);
-      setMessages((prev) => [
-        ...prev.filter((m) => m.id !== tempUserMsg.id),
-        result.user_message,
-        result.ai_message,
-      ]);
-    } catch (err: any) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-      alert("Failed to send: " + err.message);
-    } finally {
-      setSending(false);
-    }
+  function handleChipAction(prompt: string) {
+    doSend(prompt);
   }
 
   async function handleReflection() {
@@ -98,6 +115,16 @@ export default function ChatSessionPage() {
     );
   }
 
+  const actionChips = getActionChips();
+  // Find last assistant message index for showing action chips
+  let lastAssistantIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") {
+      lastAssistantIdx = i;
+      break;
+    }
+  }
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
@@ -111,12 +138,12 @@ export default function ChatSessionPage() {
         <h3 className="text-sm font-medium text-gray-900 truncate flex-1">
           {title}
         </h3>
-        {/* Reflection button */}
+        <ModeSelector value={mode} onChange={setMode} />
         <button
           onClick={handleReflection}
           disabled={reflecting || messages.length === 0}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition",
+            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition ml-1",
             reflecting
               ? "bg-amber-50 text-amber-600"
               : "bg-brand-50 text-brand-600 hover:bg-brand-100"
@@ -130,7 +157,7 @@ export default function ChatSessionPage() {
           ) : (
             <>
               <Sparkles size={14} />
-              Generate Reflection
+              Reflect
             </>
           )}
         </button>
@@ -145,11 +172,11 @@ export default function ChatSessionPage() {
             </p>
           </div>
         )}
-        {messages.map((msg) =>
+        {messages.map((msg, idx) =>
           msg.role === "user" ? (
             <div key={msg.id} className="max-w-[75%] ml-auto">
               <div className="text-xs text-gray-400 mb-1 text-right">You</div>
-              <div className="px-4 py-3 rounded-xl text-sm leading-relaxed bg-brand-600 text-white">
+              <div className="px-4 py-3 rounded-xl text-sm leading-relaxed bg-brand-600 text-white whitespace-pre-wrap">
                 {msg.content}
               </div>
             </div>
@@ -158,15 +185,23 @@ export default function ChatSessionPage() {
               <div className="text-xs text-gray-400 mb-1">Mentor</div>
               <div className="px-5 py-4 rounded-xl bg-white border border-gray-100">
                 <MarkdownMessage content={msg.content} />
+                {/* Action chips on the last assistant message only */}
+                {idx === lastAssistantIdx && !sending && (
+                  <MessageActions
+                    chips={actionChips}
+                    onAction={handleChipAction}
+                    disabled={sending}
+                  />
+                )}
               </div>
             </div>
           )
         )}
 
         {sending && (
-          <div className="max-w-[75%] mr-auto">
+          <div className="max-w-[85%] mr-auto">
             <div className="text-xs text-gray-400 mb-1">Mentor</div>
-            <div className="px-4 py-3 rounded-xl bg-white border border-gray-100">
+            <div className="px-5 py-4 rounded-xl bg-white border border-gray-100">
               <Loader2 size={16} className="animate-spin text-gray-400" />
             </div>
           </div>
@@ -204,7 +239,9 @@ export default function ChatSessionPage() {
                         <div className="text-sm font-medium text-gray-900">
                           {k.title}
                         </div>
-                        <div className="text-xs text-gray-500">{k.summary}</div>
+                        <div className="text-xs text-gray-500">
+                          {k.summary}
+                        </div>
                       </div>
                       <div className="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-1 rounded">
                         {k.mastery_score}/100
@@ -271,29 +308,28 @@ export default function ChatSessionPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <form
-        onSubmit={handleSend}
-        className="p-4 border-t border-gray-100 bg-white"
-      >
-        <div className="flex items-center gap-2 max-w-3xl mx-auto">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask your mentor anything..."
-            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-            disabled={sending}
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="p-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50"
-          >
-            <Send size={16} />
-          </button>
-        </div>
-      </form>
+      {/* Input area */}
+      <div className="border-t border-gray-100 bg-white">
+        <form onSubmit={handleSubmit} className="p-4">
+          <div className="flex items-center gap-2 max-w-3xl mx-auto">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask your mentor anything..."
+              className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              className="p-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
