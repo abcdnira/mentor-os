@@ -19,9 +19,9 @@ func main() {
 
 	db := database.Connect(cfg)
 
-	// Run migrations
+	// Run migrations — fatal on failure so we never start without tables
 	if err := database.RunMigrations(db, "migrations"); err != nil {
-		log.Printf("Warning: migration error: %v", err)
+		log.Fatalf("Migration failed: %v", err)
 	}
 
 	r := router.Setup(cfg, db)
